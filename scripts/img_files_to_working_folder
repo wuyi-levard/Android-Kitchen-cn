@@ -1,0 +1,362 @@
+############################################################################
+#
+# Copyright (c) 2011 - dsixda (dislam@rocketmail.com)
+#
+# Android Kitchen is 100% free.  This script file is intended for personal
+# and/or educational use only.  It may not be duplicated for monetary
+# benefit or any other purpose without the permission of the developer.
+#
+############################################################################
+
+#
+# This script has two optional arguments:
+#
+# $1 = "no_create" 或 "create" 或 "create_working"
+#         - 必须指定 no_create 如果工作目录已存在
+# $2 = "kernel_only"或"name_given" - 如果这个指定$1被强制
+#
+
+if [ "$1" == "no_create" ] 
+then
+  build_dir=`ls | grep -m 1 ^WORKING_`
+
+  mkdir $build_dir/system
+  mv $build_dir/system.img $build_dir/system
+
+  if [ -e $build_dir/lib.img ]
+  then
+    mkdir -p $build_dir/system/lib
+    mv $build_dir/lib.img $build_dir/system/lib
+  fi
+
+else
+
+  current_dir=`pwd`
+  dest_dir=$current_dir/original_update
+  scripts/check_no_bootimg $dest_dir
+
+  #
+  # Check for system.img/boot.img/lib.img in original_update  
+  #
+  if [ -e original_update/system.img ]
+  then
+    echo "已发现 original_update/system.img"
+    if [ -e original_update/boot.img ]
+    then
+      echo "已发现 original_update/boot.img"
+    else
+      echo "错误：未发现 original_update/boot.img"
+      echo
+      exit 1
+    fi
+
+    if [ -e original_update/lib.img ]
+    then
+      echo "已发现 original_update/lib.img"
+    fi
+
+  else
+
+    if [ -e original_update/boot.img ]
+    then
+      echo "已发现 original_update/boot.img"
+      echo "错误：未发现 original_update/system.img"
+    else
+      echo
+      echo "错误：未在original_update文件夹中找到ROM！"
+    fi
+
+    exit 1
+  fi
+
+
+  #
+  # Working folder name
+  #
+  build_dir=`scripts/set_working_folder_name $2`
+
+  echo
+  echo "正在创建工作目录 $build_dir ..."
+  mkdir $build_dir
+  mkdir $build_dir/system
+
+  echo "正在复制 boot.img ..."
+  cp original_update/boot.img $build_dir
+  echo "正在复制 system.img ..."
+  cp original_update/system.img $build_dir/system
+
+  if [ -e original_update/lib.img ]
+  then
+    echo "正在复制 lib.img ..."
+    mkdir -p $build_dir/system/lib
+    cp original_update/lib.img $build_dir/system/lib
+  fi
+
+fi
+
+
+#
+# Directory tree
+#
+
+mkdir -p $build_dir/META-INF/com/google/android
+echo
+echo "正在添加一个 update-script ..."
+cp tools/update_files/update-script $build_dir/META-INF/com/google/android/
+
+
+
+#
+# Check for YAFFS/TAR/EXT*
+#
+
+system_dir=$build_dir/system
+
+scripts/check_if_img_yaffs $system_dir system.img
+
+is_yaffs=$?
+
+if [ "$is_yaffs" == "1" ]
+then
+
+  if [ `uname | grep CYGWIN` ]
+  then
+    unyaffs_file=unyaffs.exe
+  else
+    unyaffs_file=unyaffs
+  fi
+    
+  scripts/compile_unyaffs
+  if [ "$?" == "1" ]
+  then
+    exit 0
+  fi
+
+  echo
+  echo "正在提取 system.img 中的内容 ..."
+  cd $system_dir
+  result=`../../tools/unyaffs_files/$unyaffs_file system.img 2>/dev/null`
+
+else
+
+  cd $system_dir
+
+  #
+  # Check for TAR archive
+  #
+  test_tar=`od -A n --strings -j 0 -N 7 system.img`
+
+  if [ "$test_tar" == "system/" ]
+  then
+    echo "system.img是一个TAR"
+    echo "提取文件 ..."
+    tar xf system.img -C ../
+
+  else
+
+    #
+    # Check for Samsung EXT4
+    #
+    test_ext4=`od -A n -h -j 0 -N 5 system.img | sed 's/ //g'`
+
+    if [ "$test_ext4" == "ff3aed260001" ]
+    then
+
+      mv -fv system.img ../system.img.ext4
+      cd ../..
+      scripts/simg_ext4_files_to_working_folder no_create
+      exit $?
+
+    else
+
+      echo
+      echo "NON-YAFFS/NON-TAR FILE FORMAT DETECTED IN ROM"
+      echo
+
+      # Get full path
+      system_dir=`pwd`
+
+      cd ../..
+      scripts/extract_ext3_img $system_dir system.img
+      cd $system_dir
+    fi
+  fi
+
+fi
+
+
+check_dump=`ls unyaffs*stackdump* 2>/dev/null`
+rm -f system.img 2>/dev/null
+
+if [ "$?" == "1" ]
+then
+  echo
+  echo "警告: system.img使用中.关闭应用程序后手动移除."
+  echo
+fi
+
+
+cd ..
+
+if [ "$check_dump" != "" ]
+then
+  echo
+  echo "错误：在 /system 文件夹中找到了与 unyaffs 不兼容的 stackdump 文件。"
+  exit 1
+fi
+
+if [ ! -d system ]
+then
+  echo
+  echo "错误：未找到 /system 文件夹！"
+  exit 1
+fi
+
+if [ ! -d system/framework ]
+then
+  echo
+  echo "错误: 没有发现 /system/framework文件夹!"
+  exit 1
+fi
+
+if [ ! -d system/app ]
+then
+  echo
+  echo "错误: 没有发现 /system/app文件夹!"
+  exit 1
+fi
+
+if [ "`ls system`" == "" ]
+then
+  echo 
+  echo "错误：/system 文件夹为空！"
+  echo
+  exit 1
+fi
+
+
+
+#
+# Extract the contents of lib.img, which will go under /system/lib
+#
+
+if [ -e system/lib/lib.img ]
+then
+
+  echo 
+  echo "发现 lib.img, 包含/system/lib ..."
+
+  cd ..
+
+  if [ `uname | grep CYGWIN` ]
+  then
+    scripts/press_enter
+  fi
+
+  scripts/extract_ext3_img $system_dir/lib lib.img
+  
+  rm -f $system_dir/lib/lib.img 2>/dev/null
+
+  if [ "$?" == "1" ]
+  then
+    echo
+    echo "警告: lib.img使用中. 请在应用程序关闭后手动移除."
+    echo
+  fi
+
+  #
+  # Check for empty /system/lib folder
+  #
+  lib_files=`ls $system_dir/lib`
+  if [ "$lib_files" == "lib.img" ] || [ "$lib_files" == "" ]
+  then
+    echo
+    echo "错误: lib.img文件夹为空
+    exit 1
+  fi
+
+else
+  cd ..
+  echo
+fi
+
+
+
+cd WORKING_*
+
+if [ ! -e boot.img ]
+then
+	cd ..
+  scripts/check_no_bootimg
+
+else
+
+	cd ..
+
+	#
+	# Check for location of Android header in boot.img so that it can be
+	# added to working folder correctly
+	#
+
+	scripts/check_bootimg_header
+
+	# Not a valid boot.img
+	if [ "$?" == "1" ]
+	then
+
+		scripts/check_galaxy_s
+		is_gs=$?
+
+		if [ "$is_gs" == "1" ]
+		then
+		  cp_file=redbend_ua
+		else
+		  scripts/check_galaxy_s2
+		  is_gs2=$?
+
+		  if [ "$is_gs2" == "1" ]
+		  then
+		    cp_file=flash_image
+		  fi
+		fi
+
+		if [ "$is_gs" == "1" ] || [ "$is_gs2" == "1" ]
+		then
+		  echo
+                  echo "注意: boot.img可能实际上是一个kernel (zImage)代替. 我们将"
+                  echo "重命名为 zImage."
+		  echo
+
+		  cd WORKING_*
+		  mv -v boot.img zImage
+		  echo
+		  cp -v ../tools/samsung_files/$cp_file .
+		  echo flash_zimage >> META-INF/com/google/android/update-script
+		  cd ..
+		  scripts/check_no_bootimg 
+		fi
+	fi
+fi
+
+
+# Wi-fi fix - required for some Huawei devices
+scripts/fix_huawei_wifi
+
+
+if [ "$2" != "kernel_only" ] && [ "$2" != "name_given" ]
+then
+  scripts/fix_update_script 
+
+  # Modify the update-script with features found in Nandroid backup
+  scripts/fix_update_script_with_features
+
+  scripts/remove_recovery
+fi
+
+echo "正在列出 $build_dir 的内容："
+echo
+ls -l $build_dir
+
+echo
+echo "已完成工作目录的设置！"
+

@@ -1,0 +1,151 @@
+
+echo
+echo "Samsung Galaxy S2 CSC Extractor"
+echo "-------------------------------"
+echo
+echo "This script will extract the CSC (Customer Software Customization)"
+echo "from the cache.img of a stock Samsung Galaxy S2 firmware.  The CSC"
+echo "comes in a file called 'sec_csc.zip' which contains location and"
+echo "carrier-specific configurations and software."
+echo
+
+echo -n "继续操作 (y/n)? (默认: y): "
+read do_csc
+echo
+
+if [ "$do_csc" == "n" ]
+then
+  exit 0
+fi
+
+date_str=`date '+%m%d%y_%H%M%S'`
+csc_dir=csc_$date_str
+
+echo
+echo "创建文件夹 `pwd`/$csc_dir ..."
+mkdir $csc_dir
+
+echo
+echo "---> 请把原始cache.img放到上述文件夹 <--"
+
+scripts/press_enter
+
+cd $csc_dir
+
+if [ -e cache.img.ext4 ]
+then
+  mv -fv cache.img.ext4 cache.img
+fi
+
+if [ -e cache.img ]
+then
+
+  # Check if needs to be converted with simg2img
+  initial_bytes=`od -A n -h -j 0 -N 6 cache.img | sed 's/ //g'`
+
+  if [ "$initial_bytes" == "000000000000" ]
+  then
+    mv cache.img ext4_cache.img
+    cd ..
+
+  else
+
+    #
+    # Compile simg2img
+    #
+
+    simg2img_file=simg2img
+    if [ `uname | grep CYGWIN` ]
+    then
+      simg2img_file=$simg2img_file.exe
+    fi
+
+    echo
+
+    if [ -e ../tools/samsung_files/simg2img_files/$simg2img_file ]
+    then
+      echo "发现 $simg2img_file"
+      cd ..
+    else
+      echo "编译 simg2img ..."
+
+      cd ../tools/samsung_files/simg2img_files
+      gcc -c sparse_crc32.c
+      gcc sparse_crc32.o simg2img.c -w -o simg2img
+      rm *.o 
+      cd ../../..
+
+      if [ -e tools/samsung_files/simg2img_files/$simg2img_file ]
+      then
+        echo "$simg2img_file编译成功"
+      else
+        echo "错误: $simg2img_file编译不成功!"
+        rm -rfv $csc_dir
+        exit 1
+      fi    
+    fi
+
+    echo
+  
+
+    #
+    # Convert to ext4
+    #
+
+  echo "解开cache.img为ext4格式 ..."
+    tools/samsung_files/simg2img_files/simg2img $csc_dir/cache.img \
+      $csc_dir/ext4_cache.img 
+      
+    if [ ! -e $csc_dir/ext4_cache.img ]
+    then
+      echo "无法解开 cache.img!"
+      exit 1
+    fi
+
+    rm -f $csc_dir/cache.img
+  fi
+
+  #
+  # Extract files from ext4_cache.img
+  #
+
+  if [ `uname | grep CYGWIN` ]
+  then
+    echo
+    echo "文件现在是 ext4 格式. 现在我们需要解开sec_csc.zip."
+    scripts/press_enter
+    scripts/show_linux_reader $csc_dir ext4_cache.img
+  else
+    scripts/extract_ext3_img $csc_dir ext4_cache.img
+  fi
+
+  rm -f $csc_dir/ext4_cache.img 2>/dev/null
+  if [ "$?" == "1" ]
+  then
+    echo
+    echo "警告: ext4_cache.img 正在使用中。 应用程序关闭后手动移除文件."
+    echo
+  fi
+
+  if [ ! -e $csc_dir/sec_csc.zip ]
+  then
+    echo "警告:未发现sec_csc.zip!"
+    exit 1
+  else
+    echo
+    echo "完成! 你的文件存在于 $csc_dir/sec_csc.zip."
+    echo
+    echo "你可以解压缩这个文件和复制内容到你rom文件夹中的'system'"
+    echo "文件夹"
+    echo
+    exit 0
+  fi
+
+else
+  echo "错误:未发现 cache.img!"
+  echo
+  cd ..
+  echo "移除 $csc_dir 文件夹"
+  rm -rf csc_dir
+  exit 1
+fi
