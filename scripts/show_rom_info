@@ -452,7 +452,7 @@ echo " 设备                            : $device_name"
 echo " 型号                            : $model"
 echo " ROM 名字                        : $rom_name"
 
-if [ "$is_galaxy_s" == "1" ]
+if [ "$show_csc" == "yes" ]
 then
   echo " CSC 版本                   : $csc_version"
 fi
@@ -474,7 +474,7 @@ echo " Bash命令解释器支持               : $bash_status"
 echo " /system/framework 已经 deodex    : $deodex_fr_status"
 echo " /system/app 已经 deodex          : $deodex_app_status"
 
-if [ "$is_galaxy_s" == "1" ]
+if [ "$is_galaxy_ss2" == "1" ]
 then
   echo " 发现modem.bin                : $modem_status"
 elif [ "$is_galaxy_s2x" != "1" ]

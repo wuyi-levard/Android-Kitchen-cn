@@ -14,7 +14,7 @@ cd META-INF/com/google/android
 
 if [ ! -e update-script ]
 then
-  echo "Error: update-script not found"
+  echo "错误: 未发现update-script"
   cd ../../../../..
   exit 0
 fi

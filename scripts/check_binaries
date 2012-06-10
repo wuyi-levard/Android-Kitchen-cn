@@ -59,10 +59,10 @@ do
 
     found_error=1
 
-  elif [ "$bin" == "sed" ]
+  elif [ "$bin" == "sed" ] || [ "$bin" == "od" ]
   then
 
-    grep_cmd=`sed --version | grep -m 1 GNU`
+    grep_cmd=`$bin --version | grep -m 1 GNU`
 
     if [ "$grep_cmd" == "" ]
     then

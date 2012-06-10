@@ -19,8 +19,8 @@ do
 
   echo 
   echo "============================================================"
-  echo " HTC Android Kitchen $version - by dsixda (xda-developers.com)"
-  echo "              CMOD汉化 欢迎光临www.anzhuo.cn论坛              "
+  echo " Android Kitchen $version - by dsixda (xda-developers.com)"
+  echo "              无逸汉化 欢迎光临blog.ligux.com              "
   echo "============================================================"
   echo
   echo " 11 - 对ROM中的文件做Deodex优化"

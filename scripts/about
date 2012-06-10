@@ -14,8 +14,8 @@ current_ver=$1
 
 echo 
 echo "============================================================"
-echo " HTC Android 厨房 $current_ver - 由dsixda制作 (xda-developers.com)"
-echo "              CMOD汉化 欢迎光临www.anzhuo.cn论坛              "
+echo " Android 厨房 $current_ver - 由dsixda制作 (xda-developers.com)"
+echo "              无逸汉化    欢迎光临blog.ligux.com              "
 echo "============================================================"
 echo
 echo "关于厨房"
@@ -91,13 +91,13 @@ else
       exit 0
     fi
 
-    new_file=cmod-anzhuo-Android-Kitchen-cn-$latest_ver.zip
+    new_file=wuyi-ligux-Android-Kitchen-cn-$latest_ver.zip
 
     echo
     echo "正在下载 $new_file ..."
     echo
 
-    url=https://github.com/cmod-anzhuo/Android-Kitchen-cn/zipball/$latest_ver
+    url=https://github.com/wuyi-ligux/Android-Kitchen-cn/zipball/$latest_ver
 
     wget --no-check-certificate $url -O $new_file
     echo

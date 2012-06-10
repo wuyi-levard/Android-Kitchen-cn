@@ -32,10 +32,11 @@ then
   echo  
   echo "Apps2SD 是这样的一个功能，它允许你将软件安装到SD卡，从而节"
   echo "省设备内存空间。"
-  echo "其目的是为一些内部储存空间较小的设备解决软件安装空间不足的"
+  echo
+  echo "注意：此目的是为一些内部储存空间较小的设备解决软件安装空间不足的"
   echo "问题。所以，如果你的机器内部储存空间较大(例如 Nexus S)，那"
   echo "么你就不需要做Apps2SD！"
-  echo 
+  echo
   echo "本工具中使用的是Darktremor Apps2SD方式。请先确定你的内存"
   echo "卡速度够快(例如 Class 6)，然后其分区使用的是适当的文件系"
   echo "统，最好是EXT3。通常并不需要一个交换(swap)分区。"
